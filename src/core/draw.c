@@ -681,10 +681,10 @@ static void drawTri(tic_mem* tic, const Vec2* v0, const Vec2* v1, const Vec2* v2
     }
 }
 
+tic_color triColorShader(const ShaderAttr* a) { return *(u8*)a->data; }
+
 void tic_api_tri(tic_mem* tic, float x1, float y1, float x2, float y2, float x3, float y3, u8 color)
 {
-    tic_color triColorShader(const ShaderAttr* a) { return *(u8*)a->data; }
-
     color = mapColor(tic, color);
     drawTri(tic,
         &(Vec2){x1, y1},
