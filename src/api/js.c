@@ -777,10 +777,10 @@ static duk_ret_t duk_ellib(duk_context* duk)
 
 static duk_ret_t duk_tri(duk_context* duk)
 {
-    s32 pt[6];
+    float pt[6];
 
     for(s32 i = 0; i < COUNT_OF(pt); i++)
-        pt[i] = duk_to_int(duk, i);
+        pt[i] = duk_to_number(duk, i);
 
     s32 color = duk_to_int(duk, 6);
 
@@ -793,10 +793,10 @@ static duk_ret_t duk_tri(duk_context* duk)
 
 static duk_ret_t duk_trib(duk_context* duk)
 {
-    s32 pt[6];
+    float pt[6];
 
     for(s32 i = 0; i < COUNT_OF(pt); i++)
-        pt[i] = duk_to_int(duk, i);
+        pt[i] = duk_to_number(duk, i);
 
     s32 color = duk_to_int(duk, 6);
 

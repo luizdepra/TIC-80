@@ -431,10 +431,14 @@ static SQInteger squirrel_tri(HSQUIRRELVM vm)
 
     if(top == 8)
     {
-        s32 pt[6];
+        float pt[6];
 
         for(s32 i = 0; i < COUNT_OF(pt); i++)
-            pt[i] = getSquirrelNumber(vm, i+2);
+        {
+            SQFloat f = 0.0;
+            sq_getfloat(vm, i + 2, &f);
+            pt[i] = (float)f;
+        }
         
         s32 color = getSquirrelNumber(vm, 8);
 
@@ -453,10 +457,14 @@ static SQInteger squirrel_trib(HSQUIRRELVM vm)
 
     if(top == 8)
     {
-        s32 pt[6];
+        float pt[6];
 
         for(s32 i = 0; i < COUNT_OF(pt); i++)
-            pt[i] = getSquirrelNumber(vm, i+2);
+        {
+            SQFloat f = 0.0;
+            sq_getfloat(vm, i + 2, &f);
+            pt[i] = (float)f;
+        }
         
         s32 color = getSquirrelNumber(vm, 8);
 

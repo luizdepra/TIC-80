@@ -382,10 +382,10 @@ static s32 lua_tri(lua_State* lua)
 
     if(top == 7)
     {
-        s32 pt[6];
+        float pt[6];
 
         for(s32 i = 0; i < COUNT_OF(pt); i++)
-            pt[i] = getLuaNumber(lua, i+1);
+            pt[i] = lua_tonumber(lua, i+1);
         
         s32 color = getLuaNumber(lua, 7);
 
@@ -404,10 +404,10 @@ static s32 lua_trib(lua_State* lua)
 
     if(top == 7)
     {
-        s32 pt[6];
+        float pt[6];
 
         for(s32 i = 0; i < COUNT_OF(pt); i++)
-            pt[i] = getLuaNumber(lua, i+1);
+            pt[i] = lua_tonumber(lua, i+1);
         
         s32 color = getLuaNumber(lua, 7);
 
