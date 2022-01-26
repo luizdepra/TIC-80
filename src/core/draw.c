@@ -611,23 +611,22 @@ static void setLinePixel(tic_mem* tic, s32 x, s32 y, u8 color)
 
 typedef struct
 {
-    float x, y;
+    double x, y;
 } Vec2;
-
-static inline float edgeFn(const Vec2* a, const Vec2* b, const Vec2* c)
-{
-    return (b->x-a->x)*(c->y-a->y) - (b->y-a->y)*(c->x-a->x);
-}
 
 typedef struct 
 {
     void* data;
     const Vec2* v[3];
-    float w[3];
-    float area;
+    double w[3];
 } ShaderAttr;
 
 typedef tic_color(*PixelShader)(const ShaderAttr* a);
+
+static inline double edgeFn(const Vec2* a, const Vec2* b, const Vec2* c)
+{
+    return (b->x-a->x)*(c->y-a->y) - (b->y-a->y)*(c->x-a->x);
+}
 
 static void drawTri(tic_mem* tic, const Vec2* v0, const Vec2* v1, const Vec2* v2, PixelShader shader, void* data)
 {
@@ -636,8 +635,8 @@ static void drawTri(tic_mem* tic, const Vec2* v0, const Vec2* v1, const Vec2* v2
     tic_core* core = (tic_core*)tic;
     const struct ClipRect* clip = &core->state.clip;
 
-    Vec2 min = {floorf(MIN3(a.v[0]->x, a.v[1]->x, a.v[2]->x)), floorf(MIN3(a.v[0]->y, a.v[1]->y, a.v[2]->y))};
-    Vec2 max = {ceilf(MAX3(a.v[0]->x, a.v[1]->x, a.v[2]->x)), ceilf(MAX3(a.v[0]->y, a.v[1]->y, a.v[2]->y))};
+    Vec2 min = {floor(MIN3(a.v[0]->x, a.v[1]->x, a.v[2]->x)), floor(MIN3(a.v[0]->y, a.v[1]->y, a.v[2]->y))};
+    Vec2 max = {ceil(MAX3(a.v[0]->x, a.v[1]->x, a.v[2]->x)), ceil(MAX3(a.v[0]->y, a.v[1]->y, a.v[2]->y))};
 
     min.x = MAX(min.x, clip->l);
     min.y = MAX(min.y, clip->t);
@@ -646,36 +645,54 @@ static void drawTri(tic_mem* tic, const Vec2* v0, const Vec2* v1, const Vec2* v2
 
     if(min.x >= max.x || min.y >= max.y) return;
 
-    a.area = edgeFn(a.v[0], a.v[1], a.v[2]);
-    if(floorf(a.area) == 0) return;
-    if(edgeFn(a.v[0], a.v[1], a.v[2]) < 0.0f)
+    double area = edgeFn(a.v[0], a.v[1], a.v[2]);
+    if((s32)area == 0) return;
+    if(edgeFn(a.v[0], a.v[1], a.v[2]) < 0.0)
     {
         SWAP(a.v[1], a.v[2], const Vec2*);
-        a.area = -a.area;
+        area = -area;
     }
 
     // pixel center
-    const float Center = 0.5f - 1e-07f;
-    Vec2 p;
+    const double Center = 0.5 - 1e-07;
+    Vec2 p = {min.x + Center, min.y + Center};
 
-    for(p.y = min.y + Center; p.y <= max.y; ++p.y)
+    Vec2 d[3];
+    double s[3];
+
+    for(s32 i = 0; i != 3; ++i)
     {
-        for(p.x = min.x + Center; p.x <= max.x; ++p.x)
+        s32 c = (i + 1) % 3, n = (i + 2) % 3;
+        
+        d[i].x = (a.v[c]->y - a.v[n]->y) / area;
+        d[i].y = (a.v[n]->x - a.v[c]->x) / area;
+        s[i] = edgeFn(a.v[c], a.v[n], &p) / area;
+    }
+
+    for(; p.y < max.y + Center; ++p.y, p.x = min.x + Center)
+    {
+        for(s32 i = 0; i != 3; ++i)
+            a.w[i] = s[i];
+
+        for(; p.x < max.x + Center; ++p.x)
         {
-            if(
-                (a.w[0] = edgeFn(a.v[1], a.v[2], &p)) >= 0.0f &&
-                (a.w[1] = edgeFn(a.v[2], a.v[0], &p)) >= 0.0f &&
-                (a.w[2] = edgeFn(a.v[0], a.v[1], &p)) >= 0.0f)
+            if(a.w[0] >= 0.0 && a.w[1] >= 0.0 && a.w[2] >= 0.0)
             {
                 u8 color = shader(&a);
                 if(color != TRANSPARENT_COLOR)
                     setPixelFast(core, p.x, p.y, color);
             }
+
+            for(s32 i = 0; i != 3; ++i)
+                a.w[i] += d[i].x;
         }
+
+        for(s32 i = 0; i != 3; ++i)
+            s[i] += d[i].y;
     }
 }
 
-tic_color triColorShader(const ShaderAttr* a) { return *(u8*)a->data; }
+static tic_color triColorShader(const ShaderAttr* a) { return *(u8*)a->data; }
 
 void tic_api_tri(tic_mem* tic, float x1, float y1, float x2, float y2, float x3, float y3, u8 color)
 {
@@ -701,62 +718,61 @@ void tic_api_trib(tic_mem* tic, float x1, float y1, float x2, float y2, float x3
 typedef struct
 {
     Vec2 _;
-    float u, v;
+    double u, v;
 }TexVert;
 
 typedef struct
 {
     tic_tilesheet sheet;
     u8* mapping;
-    bool use_map;
     const u8* map;
 } TexData;
 
-tic_color triTexShader(const ShaderAttr* a)
+static inline void calcUV(const ShaderAttr* a, s32* u, s32* v)
+{
+    Vec2 p = {0};
+    for(s32 i = 0; i != 3; ++i)
+    {
+        const TexVert* t = (TexVert*)a->v[i];
+        p.x += a->w[i] * t->u;
+        p.y += a->w[i] * t->v;
+    }
+
+    *u = p.x, *v = p.y;
+}
+
+static tic_color triTexMapShader(const ShaderAttr* a)
 {
     TexData* data = a->data;
 
-    const TexVert* t[] = 
-    {
-        (TexVert*)a->v[0], 
-        (TexVert*)a->v[1], 
-        (TexVert*)a->v[2],
-    };
+    s32 u, v;
+    calcUV(a, &u, &v);
 
-    Vec2 p = {0};
-    for(s32 i = 0; i < COUNT_OF(t); ++i)
-    {
-        p.x += a->w[i] * t[i]->u;
-        p.y += a->w[i] * t[i]->v;
-    }
+    enum { MapWidth = TIC_MAP_WIDTH * TIC_SPRITESIZE, MapHeight = TIC_MAP_HEIGHT * TIC_SPRITESIZE,
+        WMask = TIC_SPRITESIZE - 1, HMask = TIC_SPRITESIZE - 1 };
 
-    // !TODO: optimize this division
-    s32 u = p.x / a->area;
-    s32 v = p.y / a->area;
+    while (u < 0) u += MapWidth;
+    while (v < 0) v += MapHeight;
 
-    u8 color;
-    if(data->use_map)
-    {
-        enum { MapWidth = TIC_MAP_WIDTH * TIC_SPRITESIZE, MapHeight = TIC_MAP_HEIGHT * TIC_SPRITESIZE,
-            WMask = TIC_SPRITESIZE - 1, HMask = TIC_SPRITESIZE - 1 };
+    if(u >= MapWidth)   u %= MapWidth;
+    if(v >= MapHeight)  v %= MapHeight;
 
-        while (u < 0) u += MapWidth;
-        while (v < 0) v += MapHeight;
+    u8 idx = data->map[(v >> 3) * TIC_MAP_WIDTH + (u >> 3)];
+    tic_tileptr tile = tic_tilesheet_gettile(&data->sheet, idx, true);
 
-        u %= MapWidth;
-        v %= MapHeight;
+    return data->mapping[tic_tilesheet_gettilepix(&tile, u & WMask, v & HMask)];
+}
 
-        u8 idx = data->map[(v >> 3) * TIC_MAP_WIDTH + (u >> 3)];
-        tic_tileptr tile = tic_tilesheet_gettile(&data->sheet, idx, true);
-        color = tic_tilesheet_gettilepix(&tile, u & WMask, v & HMask);
-    }
-    else
-    {
-        enum { WMask = TIC_SPRITESHEET_SIZE - 1, HMask = TIC_SPRITESHEET_SIZE * TIC_SPRITE_BANKS - 1 };
-        color = tic_tilesheet_getpix(&data->sheet, u & WMask, v & HMask);
-    }
+static tic_color triTexTileShader(const ShaderAttr* a)
+{
+    TexData* data = a->data;
 
-    return data->mapping[color];
+    s32 u, v;
+    calcUV(a, &u, &v);
+
+    enum { WMask = TIC_SPRITESHEET_SIZE - 1, HMask = TIC_SPRITESHEET_SIZE * TIC_SPRITE_BANKS - 1 };
+
+    return data->mapping[tic_tilesheet_getpix(&data->sheet, u & WMask, v & HMask)];
 }
 
 void tic_api_textri(tic_mem* tic, float x1, float y1, float x2, float y2, float x3, float y3, float u1, float v1, float u2, float v2, float u3, float v3, bool use_map, u8* colors, s32 count)
@@ -765,7 +781,6 @@ void tic_api_textri(tic_mem* tic, float x1, float y1, float x2, float y2, float 
     {
         .sheet = getTileSheetFromSegment(tic, tic->ram.vram.blit.segment),
         .mapping = getPalette(tic, colors, count),
-        .use_map = use_map,
         .map = tic->ram.map.data,
     };
 
@@ -773,7 +788,7 @@ void tic_api_textri(tic_mem* tic, float x1, float y1, float x2, float y2, float 
         (const Vec2*)&(TexVert){x1, y1, u1, v1},
         (const Vec2*)&(TexVert){x2, y2, u2, v2},
         (const Vec2*)&(TexVert){x3, y3, u3, v3}, 
-        triTexShader, &texData);
+        use_map ? triTexMapShader : triTexTileShader, &texData);
 }
 
 void tic_api_map(tic_mem* memory, s32 x, s32 y, s32 width, s32 height, s32 sx, s32 sy, u8* colors, s32 count, s32 scale, RemapFunc remap, void* data)

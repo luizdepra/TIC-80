@@ -1974,8 +1974,55 @@ static StartArgs parseArgs(s32 argc, char **argv)
     return args;
 }
 
-Studio* studioInit(s32 argc, char **argv, s32 samplerate, const char* folder)
+#include <time.h>
+
+#define CLOCK(PREFIX) clock_t MACROVAR(_start_) = clock(); \
+    SCOPE(printf("%s time is %i ms\n", #PREFIX, 1000 * (clock() - MACROVAR(_start_)) / CLOCKS_PER_SEC))
+
+static void measureTri()
 {
+    printf("---- start tri api testing\n");
+
+    enum{Iter = 1000};
+
+    CLOCK(tri)
+    {
+        for(s32 i = 0; i < Iter; ++i)
+        {
+            float t0[] = {0, 0, 240, 0, 0, 136};
+            float t1[] = {0, 136, 240, 0, 240, 136};
+            tic_api_tri(impl.studio.tic, t0[0], t0[1], t0[2], t0[3], t0[4], t0[5], 0);
+            tic_api_tri(impl.studio.tic, t1[0], t1[1], t1[2], t1[3], t1[4], t1[5], 0);
+        }
+    }
+
+    CLOCK(textri-tiles)
+    {
+        for(s32 i = 0; i < Iter; ++i)
+        {
+            float t0[] = {0, 0, 240, 0, 0, 136, 0, 0, 16, 0, 0, 16};
+            float t1[] = {0, 136, 240, 0, 240, 136, 0, 16, 16, 0, 16, 16};
+            tic_api_textri(impl.studio.tic, t0[0], t0[1], t0[2], t0[3], t0[4], t0[5], t0[6], t0[7], t0[8], t0[9], t0[10], t0[11], false, NULL, 0);
+            tic_api_textri(impl.studio.tic, t1[0], t1[1], t1[2], t1[3], t1[4], t1[5], t1[6], t1[7], t1[8], t1[9], t1[10], t1[11], false, NULL, 0);
+        }
+    }
+
+    CLOCK(textri-map)
+    {
+        for(s32 i = 0; i < Iter; ++i)
+        {
+            float t0[] = {0, 0, 240, 0, 0, 136, 0, 0, 16, 0, 0, 16};
+            float t1[] = {0, 136, 240, 0, 240, 136, 0, 16, 16, 0, 16, 16};
+            tic_api_textri(impl.studio.tic, t0[0], t0[1], t0[2], t0[3], t0[4], t0[5], t0[6], t0[7], t0[8], t0[9], t0[10], t0[11], true, NULL, 0);
+            tic_api_textri(impl.studio.tic, t1[0], t1[1], t1[2], t1[3], t1[4], t1[5], t1[6], t1[7], t1[8], t1[9], t1[10], t1[11], true, NULL, 0);            
+        }
+    }
+
+    printf("---- end tri api testing\n");
+}
+
+Studio* studioInit(s32 argc, char **argv, s32 samplerate, const char* folder)
+{    
     setbuf(stdout, NULL);
 
     StartArgs args = parseArgs(argc, argv);
@@ -2014,6 +2061,8 @@ Studio* studioInit(s32 argc, char **argv, s32 samplerate, const char* folder)
 
     impl.tic80local = (tic80_local*)tic80_create(impl.samplerate);
     impl.studio.tic = impl.tic80local->memory;
+
+    measureTri();
 
     {
 
