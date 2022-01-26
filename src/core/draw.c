@@ -635,8 +635,8 @@ static void drawTri(tic_mem* tic, const Vec2* v0, const Vec2* v1, const Vec2* v2
     tic_core* core = (tic_core*)tic;
     const struct ClipRect* clip = &core->state.clip;
 
-    Vec2 min = {floor(MIN3(a.v[0]->x, a.v[1]->x, a.v[2]->x)), floor(MIN3(a.v[0]->y, a.v[1]->y, a.v[2]->y))};
-    Vec2 max = {ceil(MAX3(a.v[0]->x, a.v[1]->x, a.v[2]->x)), ceil(MAX3(a.v[0]->y, a.v[1]->y, a.v[2]->y))};
+    tic_point min = {floor(MIN3(a.v[0]->x, a.v[1]->x, a.v[2]->x)), floor(MIN3(a.v[0]->y, a.v[1]->y, a.v[2]->y))};
+    tic_point max = {ceil(MAX3(a.v[0]->x, a.v[1]->x, a.v[2]->x)), ceil(MAX3(a.v[0]->y, a.v[1]->y, a.v[2]->y))};
 
     min.x = MAX(min.x, clip->l);
     min.y = MAX(min.y, clip->t);
@@ -646,22 +646,22 @@ static void drawTri(tic_mem* tic, const Vec2* v0, const Vec2* v1, const Vec2* v2
     if(min.x >= max.x || min.y >= max.y) return;
 
     double area = edgeFn(a.v[0], a.v[1], a.v[2]);
-    if((s32)area == 0) return;
+    if((s32)floor(area) == 0) return;
     if(edgeFn(a.v[0], a.v[1], a.v[2]) < 0.0)
     {
         SWAP(a.v[1], a.v[2], const Vec2*);
         area = -area;
     }
 
-    // pixel center
-    const double Center = 0.5 - 1e-07;
-    Vec2 p = {min.x + Center, min.y + Center};
-
     Vec2 d[3];
     double s[3];
 
     for(s32 i = 0; i != 3; ++i)
     {
+        // pixel center
+        const double Center = 0.5 - 1e-07;
+        Vec2 p = {min.x + Center, min.y + Center};
+
         s32 c = (i + 1) % 3, n = (i + 2) % 3;
         
         d[i].x = (a.v[c]->y - a.v[n]->y) / area;
@@ -669,18 +669,18 @@ static void drawTri(tic_mem* tic, const Vec2* v0, const Vec2* v1, const Vec2* v2
         s[i] = edgeFn(a.v[c], a.v[n], &p) / area;
     }
 
-    for(; p.y < max.y + Center; ++p.y, p.x = min.x + Center)
+    for(s32 y = min.y; y < max.y; ++y)
     {
         for(s32 i = 0; i != 3; ++i)
             a.w[i] = s[i];
 
-        for(; p.x < max.x + Center; ++p.x)
+        for(s32 x = min.x; x < max.x; ++x)
         {
             if(a.w[0] >= 0.0 && a.w[1] >= 0.0 && a.w[2] >= 0.0)
             {
                 u8 color = shader(&a);
                 if(color != TRANSPARENT_COLOR)
-                    setPixelFast(core, p.x, p.y, color);
+                    setPixelFast(core, x, y, color);
             }
 
             for(s32 i = 0; i != 3; ++i)
