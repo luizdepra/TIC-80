@@ -662,16 +662,10 @@ static void drawTri(tic_mem* tic, const Vec2* v0, const Vec2* v1, const Vec2* v2
             const float Center = 0.5f - 1e-07f;
             Vec2 p = {x + Center, y + Center};
 
-            bool inside = true;
-            // !TODO: measure this later and optimize edgeFn() call
-            for(s32 i = 0, j = 1; i < 3; ++i, ++j)
-                if((a.w[i] = edgeFn(a.v[j % 3], a.v[(j + 1) % 3], &p)) < 0.0f)
-                {
-                    inside = false;
-                    break;
-                }
-
-            if (inside)
+            if(
+                (a.w[0] = edgeFn(a.v[1], a.v[2], &p)) >= 0.0f &&
+                (a.w[1] = edgeFn(a.v[2], a.v[0], &p)) >= 0.0f &&
+                (a.w[2] = edgeFn(a.v[0], a.v[1], &p)) >= 0.0f)
             {
                 u8 color = shader(&a);
                 if(color != TRANSPARENT_COLOR)
