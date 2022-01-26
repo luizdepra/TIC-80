@@ -636,8 +636,8 @@ static void drawTri(tic_mem* tic, const Vec2* v0, const Vec2* v1, const Vec2* v2
     tic_core* core = (tic_core*)tic;
     const struct ClipRect* clip = &core->state.clip;
 
-    tic_point min = {floorf(MIN3(a.v[0]->x, a.v[1]->x, a.v[2]->x)), floorf(MIN3(a.v[0]->y, a.v[1]->y, a.v[2]->y))};
-    tic_point max = {ceilf(MAX3(a.v[0]->x, a.v[1]->x, a.v[2]->x)), ceilf(MAX3(a.v[0]->y, a.v[1]->y, a.v[2]->y))};
+    Vec2 min = {floorf(MIN3(a.v[0]->x, a.v[1]->x, a.v[2]->x)), floorf(MIN3(a.v[0]->y, a.v[1]->y, a.v[2]->y))};
+    Vec2 max = {ceilf(MAX3(a.v[0]->x, a.v[1]->x, a.v[2]->x)), ceilf(MAX3(a.v[0]->y, a.v[1]->y, a.v[2]->y))};
 
     min.x = MAX(min.x, clip->l);
     min.y = MAX(min.y, clip->t);
@@ -654,14 +654,14 @@ static void drawTri(tic_mem* tic, const Vec2* v0, const Vec2* v1, const Vec2* v2
         a.area = -a.area;
     }
 
-    for(s32 y = min.y; y < max.y; ++y)
-    {
-        for(s32 x = min.x; x < max.x; ++x)
-        {
-            // pixel center
-            const float Center = 0.5f - 1e-07f;
-            Vec2 p = {x + Center, y + Center};
+    // pixel center
+    const float Center = 0.5f - 1e-07f;
+    Vec2 p;
 
+    for(p.y = min.y + Center; p.y <= max.y; ++p.y)
+    {
+        for(p.x = min.x + Center; p.x <= max.x; ++p.x)
+        {
             if(
                 (a.w[0] = edgeFn(a.v[1], a.v[2], &p)) >= 0.0f &&
                 (a.w[1] = edgeFn(a.v[2], a.v[0], &p)) >= 0.0f &&
@@ -669,7 +669,7 @@ static void drawTri(tic_mem* tic, const Vec2* v0, const Vec2* v1, const Vec2* v2
             {
                 u8 color = shader(&a);
                 if(color != TRANSPARENT_COLOR)
-                    setPixelFast(core, x, y, color);
+                    setPixelFast(core, p.x, p.y, color);
             }
         }
     }
